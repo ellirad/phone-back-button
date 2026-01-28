@@ -9,7 +9,7 @@ export function SheetA({ onOpenSheetB }: { onOpenSheetB: () => void }) {
                 onClick={onOpenSheetB}
                 className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-base font-medium rounded-md shadow-md transition-colors duration-200"
             >
-                Open Bottm Sheet B
+                Open Bottom Sheet B
             </button>
         </div>
     )
