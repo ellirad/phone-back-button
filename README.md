@@ -59,7 +59,48 @@ src/
 npm install
 npm run dev        # development
 npm run build      # production
-serve -s dist      # serve built app for testing PWA on mobile
+npm run preview    # preview built app
+```
+
+## Tests
+
+The project includes comprehensive unit tests for the back stack functionality using Vitest and React Testing Library.
+
+### Running Tests
+
+```bash
+npm test          # run tests once
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **Stack Management**: Push/pop operations and state management
+- **History Integration**: Browser history synchronization and back button handling
+- **URL Serialization**: Stack state persistence in URL parameters
+- **Popstate Events**: Hardware/browser back button behavior
+- **Edge Cases**: Empty stack handling and multiple operations
+
+### Test Files
+
+- `src/backStack/useBackStack.test.ts` - Core back stack hook tests
+- `src/test/setup.ts` - Test environment configuration
+
+### Key Test Scenarios
+
+```typescript
+// History is only created on first sheet opening
+it('updates browser history only on first push')
+
+// Manual closing doesn't create history entries
+it('does not update browser history when popping a step')
+
+// Back button closes sheets properly
+it('closes top-most sheet when popstate fires and sheets are open')
+
+// Multiple back presses work correctly
+it('closes all sheets one by one on repeated popstate events')
 ```
 
 ## Usage
