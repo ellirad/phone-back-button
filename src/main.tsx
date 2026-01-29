@@ -1,9 +1,10 @@
-import React from 'react'
+import { registerSW } from 'virtual:pwa-register'
 import ReactDOM from 'react-dom/client'
+import React from 'react'
+
+import {BackStackProvider} from "./backStack";
 import App from './App'
 import './index.css'
-import { registerSW } from 'virtual:pwa-register'
-import {BackStackProvider} from "./backStack";
 
 registerSW({
     onNeedRefresh() {

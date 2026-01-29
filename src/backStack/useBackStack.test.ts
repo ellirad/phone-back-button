@@ -1,5 +1,5 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
 import { useBackStack } from './useBackStack'
 
 describe('useBackStack', () => {
@@ -35,14 +35,24 @@ describe('useBackStack', () => {
             expect(result.current.stack).toEqual(['step1', 'step2'])
         })
 
-        it('updates browser history when pushing a step', () => {
+        it('updates browser history only on first push', () => {
             const { result } = renderHook(() => useBackStack())
+            const pushStateSpy = vi.spyOn(window.history, 'pushState')
 
+            // First push should create history entry
             act(() => {
                 result.current.push('step1')
             })
 
+            expect(pushStateSpy).toHaveBeenCalledTimes(1)
             expect(window.history.state?.backStack).toEqual(['step1'])
+
+            // Second push should NOT create new history entry
+            act(() => {
+                result.current.push('step2')
+            })
+
+            expect(pushStateSpy).toHaveBeenCalledTimes(1) // Still only 1 call
         })
     })
 
@@ -91,21 +101,28 @@ describe('useBackStack', () => {
             expect(result.current.stack).toEqual([])
         })
 
-        it('updates browser history when popping a step', () => {
+        it('does not update browser history when popping a step', () => {
             const { result } = renderHook(() => useBackStack())
+            const pushStateSpy = vi.spyOn(window.history, 'pushState')
 
+            // Push some steps
             act(() => {
                 result.current.push('step1')
                 result.current.push('step2')
             })
 
-            expect(window.history.state?.backStack).toEqual(['step1', 'step2'])
+            // Reset spy to count only pop operations
+            pushStateSpy.mockClear()
 
+            // Pop should not create new history entries
             act(() => {
                 result.current.pop()
             })
 
-            expect(window.history.state?.backStack).toEqual(['step1'])
+            expect(pushStateSpy).not.toHaveBeenCalled()
+            
+            // State should still be updated locally
+            expect(result.current.stack).toEqual(['step1'])
         })
     })
 
@@ -169,43 +186,36 @@ describe('useBackStack', () => {
             replaceStateSpy.mockRestore()
         })
 
-        it('correctly synchronizes the stack with the URL on pop', () => {
+        it('does not update URL when popping steps', () => {
             const { result } = renderHook(() => useBackStack())
             const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
 
+            // Push steps to setup
             act(() => {
                 result.current.push('step1')
                 result.current.push('step2')
             })
 
-            act(() => {
-                result.current.pop()
-            })
-
-            // Check that replaceState was called with the correct URL
-            expect(replaceStateSpy).toHaveBeenCalledWith(
-                expect.anything(),
-                '',
-                '?step=step1'
-            )
+            // Clear spy to only track pop operations
+            replaceStateSpy.mockClear()
 
             act(() => {
                 result.current.pop()
             })
 
-            // When stack is empty, URL should be cleared (pathname only)
-            expect(replaceStateSpy).toHaveBeenCalledWith(
-                expect.anything(),
-                '',
-                '/'
-            )
+            // URL should not be updated on pop to avoid history issues
+            expect(replaceStateSpy).not.toHaveBeenCalled()
 
             replaceStateSpy.mockRestore()
         })
 
-        it('correctly synchronizes the stack with browser history on state changes', async () => {
+    })
+
+    describe('popstate event handling', () => {
+        it('closes top-most sheet when popstate fires and sheets are open', () => {
             const { result } = renderHook(() => useBackStack())
 
+            // Setup: open some sheets
             act(() => {
                 result.current.push('step1')
                 result.current.push('step2')
@@ -215,53 +225,56 @@ describe('useBackStack', () => {
 
             // Simulate browser back button by triggering popstate event
             act(() => {
-                window.history.pushState({ backStack: ['step1'] }, '')
-                window.dispatchEvent(new PopStateEvent('popstate', {
-                    state: { backStack: ['step1'] }
-                }))
+                window.dispatchEvent(new PopStateEvent('popstate'))
             })
 
-            await waitFor(() => {
-                expect(result.current.stack).toEqual(['step1'])
-            })
+            // Should close the top-most sheet
+            expect(result.current.stack).toEqual(['step1'])
         })
 
-        it('reads stack from URL on initialization when history is empty', () => {
-            // Set URL params before rendering hook
-            window.history.replaceState(null, '', '?step=step1,step2')
-            window.location.search = '?step=step1,step2'
-
+        it('closes all sheets one by one on repeated popstate events', () => {
             const { result } = renderHook(() => useBackStack())
 
-            expect(result.current.stack).toEqual(['step1', 'step2'])
-        })
-
-        it('reads stack from history state on initialization when available', () => {
-            // Set history state before rendering hook
-            window.history.replaceState({ backStack: ['stepA', 'stepB'] }, '', '/')
-
-            const { result } = renderHook(() => useBackStack())
-
-            expect(result.current.stack).toEqual(['stepA', 'stepB'])
-        })
-
-        it('handles popstate event with no state by reading from URL', async () => {
-            const { result } = renderHook(() => useBackStack())
-
+            // Setup: open multiple sheets
             act(() => {
                 result.current.push('step1')
+                result.current.push('step2')
+                result.current.push('step3')
             })
 
-            // Simulate popstate with no state
+            expect(result.current.stack).toEqual(['step1', 'step2', 'step3'])
+
+            // First popstate - close step3
             act(() => {
-                window.history.replaceState(null, '', '?step=step2,step3')
-                window.location.search = '?step=step2,step3'
-                window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
+                window.dispatchEvent(new PopStateEvent('popstate'))
+            })
+            expect(result.current.stack).toEqual(['step1', 'step2'])
+
+            // Second popstate - close step2
+            act(() => {
+                window.dispatchEvent(new PopStateEvent('popstate'))
+            })
+            expect(result.current.stack).toEqual(['step1'])
+
+            // Third popstate - close step1
+            act(() => {
+                window.dispatchEvent(new PopStateEvent('popstate'))
+            })
+            expect(result.current.stack).toEqual([])
+        })
+
+        it('does nothing on popstate when no sheets are open', () => {
+            const { result } = renderHook(() => useBackStack())
+
+            expect(result.current.stack).toEqual([])
+
+            // Trigger popstate with empty stack
+            act(() => {
+                window.dispatchEvent(new PopStateEvent('popstate'))
             })
 
-            await waitFor(() => {
-                expect(result.current.stack).toEqual(['step2', 'step3'])
-            })
+            // Should remain empty
+            expect(result.current.stack).toEqual([])
         })
     })
 })

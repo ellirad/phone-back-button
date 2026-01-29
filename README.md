@@ -70,21 +70,6 @@ serve -s dist      # serve built app for testing PWA on mobile
 <Sheet isOpen={hasStep('A')} onClose={pop}>...</Sheet>
 <Sheet isOpen={hasStep('B')} onClose={pop}>...</Sheet>
 ```
-
-**Back stack API**:
-
-```ts
-const { stack, push, pop, hasStep } = useBackStack()
-
-push('A')        // Opens Sheet A
-push('B')        // Opens Sheet B
-pop()            // Closes the top sheet
-hasStep('A')     // true if Sheet A is open
-```
-
-* URL is automatically updated: `?stack=A,B`
-* Browser back button closes sheets in reverse order
-
 ## Notes
 
 * `stack` is the source of truth, URL is derived.

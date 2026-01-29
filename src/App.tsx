@@ -1,6 +1,7 @@
-import { WelcomePage } from '../src/pages/welcome'
-import { SheetA, SheetB } from '../src/bottomSheets'
 import { Sheet } from 'react-modal-sheet'
+
+import { SheetA, SheetB } from '../src/bottomSheets'
+import { WelcomePage } from '../src/pages/welcome'
 import { useBackStack } from './backStack'
 
 export default function App() {

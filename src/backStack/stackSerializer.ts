@@ -7,16 +7,6 @@ export function encodeStack(stack: BackStackStep[]): string {
     return stack.join(',')
 }
 
-export function decodeStack(value: string | null): BackStackStep[] {
-    if (!value) return []
-    return value.split(',').filter(Boolean)
-}
-
-export function readStackFromURL(): BackStackStep[] {
-    const params = new URLSearchParams(window.location.search)
-    return decodeStack(params.get(PARAM))
-}
-
 export function writeStackToURL(stack: BackStackStep[]) {
     const params = new URLSearchParams(window.location.search)
 

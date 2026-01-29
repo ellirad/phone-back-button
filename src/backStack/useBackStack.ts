@@ -1,21 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
+
 import type { BackStackStep } from './backStack.types'
+import { writeStackToURL } from './stackSerializer'
 import { pushStep, popStep } from './stackReducer'
-import { pushHistory, readHistory } from './historyAdapter'
-import { readStackFromURL, writeStackToURL } from './stackSerializer'
+import { pushHistory } from './historyAdapter'
 
 export function useBackStack() {
-    const [stack, setStack] = useState<BackStackStep[]>(() => {
-        const fromHistory = readHistory()
-        if (fromHistory.length) return fromHistory
-        return readStackFromURL()
-    })
+    const [stack, setStack] = useState<BackStackStep[]>([])
 
     const push = useCallback((step: BackStackStep) => {
         setStack(prev => {
             const next = pushStep(prev, step)
-            pushHistory(next)
+    
+            if (prev.length === 0 && next.length === 1) {
+                pushHistory(next)
+            }
+
             writeStackToURL(next)
+            
             return next
         })
     }, [])
@@ -24,8 +26,6 @@ export function useBackStack() {
         setStack(prev => {
             if (prev.length === 0) return prev
             const next = popStep(prev)
-            pushHistory(next)
-            writeStackToURL(next)
             return next
         })
     }, [])
@@ -36,11 +36,16 @@ export function useBackStack() {
     )
 
     useEffect(() => {
-        const onPopState = (event: PopStateEvent) => {
-            const nextStack =
-                event.state?.backStack ?? readStackFromURL()
-
-            setStack(nextStack)
+        const onPopState = () => {
+            setStack(currentStack => {
+                
+                if (currentStack.length > 0) {
+                    const next = popStep(currentStack)
+                    return next
+                } else {
+                    return currentStack
+                }
+            })
         }
 
         window.addEventListener('popstate', onPopState)
